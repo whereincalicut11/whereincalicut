@@ -198,7 +198,8 @@ export const STAYS_DATA: Stay[] = [
 ];
 
 import { collection, getDocs, doc, setDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { db, isFirebaseConfigured } from '../firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, isFirebaseConfigured, storage } from '../firebase';
 
 // Helper to seed Firebase with mock data if it is empty
 async function seedMockData() {
@@ -356,5 +357,54 @@ export async function fetchInquiriesFromFirebase() {
     return [];
   }
 }
+
+// Fetch booking requests from Firestore
+export async function fetchBookingsFromFirebase() {
+  if (!isFirebaseConfigured || !db) {
+    return [];
+  }
+  try {
+    const bookingsCol = collection(db, 'bookings');
+    const snap = await getDocs(bookingsCol);
+    const bookings: any[] = [];
+    snap.forEach((doc) => {
+      bookings.push({ id: doc.id, ...doc.data() });
+    });
+    bookings.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return bookings;
+  } catch (error) {
+    console.error('WhereInCalicut: Error fetching bookings from Firestore:', error);
+    return [];
+  }
+}
+
+// Upload image file to Firebase Storage (falls back to base64 encoding if not configured or failed)
+export async function uploadImageToFirebase(file: File): Promise<string> {
+  if (!isFirebaseConfigured || !storage) {
+    // Local fallback: read file as base64 data URL
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+  try {
+    const fileRef = ref(storage, `stays/${Date.now()}-${file.name}`);
+    const snapshot = await uploadBytes(fileRef, file);
+    const downloadUrl = await getDownloadURL(snapshot.ref);
+    return downloadUrl;
+  } catch (error) {
+    console.warn('WhereInCalicut: Storage upload failed, falling back to base64 encoding:', error);
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+}
+
+
 
 

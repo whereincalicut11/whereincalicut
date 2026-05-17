@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Lock, LayoutDashboard, Plus, Edit2, Trash2, Mail, 
   MapPin, LogOut, ArrowRight, HelpCircle, Eye, 
-  X, Check, AlertCircle, RefreshCw
+  X, Check, AlertCircle, RefreshCw, Upload
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   fetchStaysFromFirebase, addStayToFirebase, 
   updateStayInFirebase, deleteStayFromFirebase, 
-  fetchInquiriesFromFirebase 
+  fetchInquiriesFromFirebase, fetchBookingsFromFirebase,
+  uploadImageToFirebase
 } from '../data/stays';
 import type { Stay } from '../data/stays';
 
@@ -31,6 +32,52 @@ export default function Dashboard() {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingStay, setEditingStay] = useState<Stay | null>(null);
   const [selectedInquiry, setSelectedInquiry] = useState<any | null>(null);
+
+  // Image Upload States
+  const [uploadingPrimary, setUploadingPrimary] = useState(false);
+  const [uploadingGallery, setUploadingGallery] = useState([false, false, false]);
+
+  // Handle primary thumbnail image upload
+  const handlePrimaryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPrimary(true);
+    try {
+      const url = await uploadImageToFirebase(file);
+      setStayForm(prev => ({ ...prev, image: url }));
+    } catch (error) {
+      console.error('Error uploading primary image:', error);
+    } finally {
+      setUploadingPrimary(false);
+    }
+  };
+
+  // Handle gallery image upload for specific index
+  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingGallery(prev => {
+      const copy = [...prev];
+      copy[index] = true;
+      return copy;
+    });
+    try {
+      const url = await uploadImageToFirebase(file);
+      setStayForm(prev => {
+        const updatedImages = [...prev.images];
+        updatedImages[index] = url;
+        return { ...prev, images: updatedImages };
+      });
+    } catch (error) {
+      console.error(`Error uploading gallery image at slot ${index + 1}:`, error);
+    } finally {
+      setUploadingGallery(prev => {
+        const copy = [...prev];
+        copy[index] = false;
+        return copy;
+      });
+    }
+  };
 
   // Form Fields for Add/Edit Stay
   const [stayForm, setStayForm] = useState({
@@ -72,8 +119,32 @@ export default function Dashboard() {
     try {
       const allStays = await fetchStaysFromFirebase();
       const allInquiries = await fetchInquiriesFromFirebase();
+      const allBookings = await fetchBookingsFromFirebase();
+
+      // Combine both sources
+      const combinedInquiries = [
+        ...allInquiries.map((inq: any) => ({
+          ...inq,
+          type: 'General',
+          badgeText: inq.subject || 'General Inquiry'
+        })),
+        ...allBookings.map((b: any) => ({
+          id: b.id,
+          name: b.name,
+          email: b.phone ? `Phone: ${b.phone}` : 'No phone provided',
+          subject: `Booking Request`,
+          message: `Interested in: ${b.stayTitle || 'Hostel/PG'}\nTentative Move-in: ${b.date || 'Not specified'}\n\nClient notes:\n"${b.message || 'None'}"`,
+          createdAt: b.createdAt || new Date().toISOString(),
+          type: 'Booking',
+          badgeText: `Booking Request: ${b.stayTitle || 'Stay'}`
+        }))
+      ];
+
+      // Sort by createdAt descending
+      combinedInquiries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
       setStays(allStays);
-      setInquiries(allInquiries);
+      setInquiries(combinedInquiries);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
@@ -486,8 +557,12 @@ export default function Dashboard() {
                   >
                     <div className="space-y-2">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-lg bg-primary-50 border border-primary-100 text-primary-700 px-2 py-0.5 text-[10px] font-bold">
-                          {inq.subject || 'General Inquiry'}
+                        <span className={`rounded-lg border px-2 py-0.5 text-[10px] font-bold ${
+                          inq.type === 'Booking' 
+                            ? 'bg-emerald-50 border-emerald-100 text-emerald-700' 
+                            : 'bg-primary-50 border-primary-100 text-primary-700'
+                        }`}>
+                          {inq.badgeText || 'General Inquiry'}
                         </span>
                         <span className="text-[10px] text-slate-400">
                           {new Date(inq.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
@@ -671,23 +746,88 @@ export default function Dashboard() {
                     placeholder="Provide full description about double sharing availability, single room AC pricing, study table features, meal timings..."
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-700 outline-none focus:border-primary-500 focus:bg-white min-h-[100px]"
                   ></textarea>
+                      {/* Primary Image Upload & Thumbnail URL */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border border-slate-200/80 p-4 rounded-2xl bg-slate-50/50">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                      Thumbnail Image (Primary File Upload)
+                    </label>
+                    <div className="flex items-center gap-3">
+                      {stayForm.image && (
+                        <img 
+                          src={stayForm.image} 
+                          alt="Thumbnail preview" 
+                          className="h-14 w-20 object-cover rounded-lg border border-slate-200 bg-white" 
+                        />
+                      )}
+                      <label className="flex-1 flex flex-col items-center justify-center border border-dashed border-slate-300 rounded-xl p-3 cursor-pointer bg-white hover:bg-slate-50 hover:border-primary-500 transition-all text-center">
+                        <Upload className={`h-5 w-5 text-slate-400 ${uploadingPrimary ? 'animate-bounce' : ''}`} />
+                        <span className="text-[10px] font-bold text-slate-600 mt-1">
+                          {uploadingPrimary ? 'Uploading...' : 'Choose Thumbnail File'}
+                        </span>
+                        <input type="file" accept="image/*" onChange={handlePrimaryUpload} className="hidden" />
+                      </label>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="image" className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                      Or Paste Thumbnail URL
+                    </label>
+                    <input
+                      id="image"
+                      type="text"
+                      required
+                      value={stayForm.image}
+                      onChange={(e) => setStayForm(prev => ({ ...prev, image: e.target.value }))}
+                      placeholder="https://images.unsplash.com/photo-..."
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs text-slate-700 outline-none focus:border-primary-500 min-h-[44px]"
+                    />
+                  </div>
                 </div>
 
-                {/* Image URLs */}
-                <div>
-                  <label htmlFor="image" className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                    Primary Listing Image URL
+                {/* Gallery Upload & URLs */}
+                <div className="border border-slate-200/80 p-4 rounded-2xl bg-slate-50/50 space-y-4">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Stay Gallery Images (Upload up to 3)
                   </label>
-                  <input
-                    id="image"
-                    type="text"
-                    required
-                    value={stayForm.image}
-                    onChange={(e) => setStayForm(prev => ({ ...prev, image: e.target.value }))}
-                    placeholder="https://images.unsplash.com/photo-..."
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-700 outline-none focus:border-primary-500 focus:bg-white min-h-[44px]"
-                  />
-                </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {stayForm.images.map((imgUrl, idx) => (
+                      <div key={idx} className="space-y-2 border border-slate-100 p-2 rounded-xl bg-white">
+                        <div className="relative h-20 w-full rounded-lg overflow-hidden border border-slate-100 bg-slate-50">
+                          {imgUrl ? (
+                            <img src={imgUrl} alt={`Gallery Slot ${idx + 1}`} className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="flex items-center justify-center h-full text-slate-300">
+                              <HelpCircle className="h-6 w-6" />
+                            </div>
+                          )}
+                        </div>
+                        
+                        <label className="flex items-center justify-center gap-1.5 border border-dashed border-slate-300 rounded-lg py-1.5 cursor-pointer hover:bg-slate-50 hover:border-primary-500 transition-all text-center">
+                          <Upload className={`h-3 w-3 text-slate-400 ${uploadingGallery[idx] ? 'animate-bounce' : ''}`} />
+                          <span className="text-[9px] font-bold text-slate-600">
+                            {uploadingGallery[idx] ? 'Uploading...' : `Upload Photo ${idx + 1}`}
+                          </span>
+                          <input type="file" accept="image/*" onChange={(e) => handleGalleryUpload(e, idx)} className="hidden" />
+                        </label>
+                        
+                        <input
+                          type="text"
+                          required
+                          value={imgUrl}
+                          onChange={(e) => setStayForm(prev => {
+                            const copy = [...prev.images];
+                            copy[idx] = e.target.value;
+                            return { ...prev, images: copy };
+                          })}
+                          placeholder={`Image ${idx + 1} URL`}
+                          className="w-full rounded-lg border border-slate-200 px-2 py-1 text-[9px] text-slate-600 outline-none focus:border-primary-500 bg-slate-50"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>            </div>
 
                 {/* Amenities Comma-separated */}
                 <div>
@@ -821,8 +961,12 @@ export default function Dashboard() {
 
               <div className="space-y-4">
                 <div>
-                  <span className="rounded-lg bg-primary-50 border border-primary-100 text-primary-700 px-2 py-0.5 text-[10px] font-bold">
-                    {selectedInquiry.subject || 'General Inquiry'}
+                  <span className={`rounded-lg border px-2 py-0.5 text-[10px] font-bold ${
+                    selectedInquiry.type === 'Booking' 
+                      ? 'bg-emerald-50 border-emerald-100 text-emerald-700' 
+                      : 'bg-primary-50 border-primary-100 text-primary-700'
+                  }`}>
+                    {selectedInquiry.badgeText || 'General Inquiry'}
                   </span>
                   <h3 className="font-heading text-xl font-extrabold text-slate-900 mt-2">
                     {selectedInquiry.name}
