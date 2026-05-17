@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
   ArrowLeft, Star, MapPin, Shield, CheckCircle, Wifi, Zap, 
@@ -7,32 +7,33 @@ import {
   Send, Sparkles, X, CreditCard, Smartphone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { STAYS_DATA } from '../data/stays';
+import { fetchStaysFromFirebase, submitBookingToFirebase } from '../data/stays';
+import type { Stay } from '../data/stays';
 
 
 export default function StayDetails() {
   const { id } = useParams<{ id: string }>();
   
-  // Find properties reactively
-  const stay = useMemo(() => {
-    return STAYS_DATA.find((s) => s.id === id);
+  const [stay, setStay] = useState<Stay | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeImage, setActiveImage] = useState<string>('');
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchStaysFromFirebase().then((data) => {
+      if (isMounted) {
+        const found = data.find((s) => s.id === id);
+        if (found) {
+          setStay(found);
+          setActiveImage(found.image);
+        }
+        setLoading(false);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
   }, [id]);
-
-  if (!stay) {
-    return (
-      <div className="mx-auto max-w-7xl px-4 py-24 text-center">
-        <h2 className="font-heading text-2xl font-bold text-slate-800">Stay Not Found</h2>
-        <p className="text-slate-500 mt-2">The accommodation you are looking for does not exist or has been removed.</p>
-        <Link to="/" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary-600 px-6 py-3 font-semibold text-white shadow-md hover:bg-primary-700 min-h-[44px]">
-          <ArrowLeft className="h-4 w-4" />
-          <span>Back to Home</span>
-        </Link>
-      </div>
-    );
-  }
-
-  // Gallery state
-  const [activeImage, setActiveImage] = useState(stay.image);
 
   // Form states
   const [bookingForm, setBookingForm] = useState({
@@ -44,14 +45,55 @@ export default function StayDetails() {
   });
   const [bookingSubmitted, setBookingSubmitted] = useState(false);
 
-  const handleBookingSubmit = (e: React.FormEvent) => {
+  const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setBookingSubmitted(true);
-    setTimeout(() => {
-      setBookingSubmitted(false);
-      setBookingForm({ name: '', email: '', phone: '', date: '', message: '' });
-    }, 5000);
+    if (!stay) return;
+
+    const success = await submitBookingToFirebase({
+      stayId: stay.id,
+      stayTitle: stay.title,
+      name: bookingForm.name,
+      phone: bookingForm.phone,
+      date: bookingForm.date,
+      message: bookingForm.message,
+      status: 'Pending',
+      createdAt: new Date().toISOString()
+    });
+
+    if (success) {
+      setBookingSubmitted(true);
+      setTimeout(() => {
+        setBookingSubmitted(false);
+        setBookingForm({ name: '', email: '', phone: '', date: '', message: '' });
+      }, 5000);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-24 text-center">
+        <div className="relative h-12 w-12 mx-auto mb-4">
+          <div className="absolute inset-0 rounded-full border-4 border-slate-100"></div>
+          <div className="absolute inset-0 rounded-full border-4 border-primary-600 border-t-transparent animate-spin"></div>
+        </div>
+        <p className="text-slate-500 font-medium text-sm">Loading accommodation details...</p>
+      </div>
+    );
+  }
+
+  if (!stay) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-24 text-center">
+        <h2 className="font-heading text-2xl font-bold text-slate-800">Stay Not Found</h2>
+        <p className="text-slate-500 mt-2 text-sm sm:text-base">The accommodation you are looking for does not exist or has been removed.</p>
+        <Link to="/" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary-600 px-6 py-3 font-semibold text-white shadow-md hover:bg-primary-700 min-h-[44px]">
+          <ArrowLeft className="h-4 w-4" />
+          <span>Back to Home</span>
+        </Link>
+      </div>
+    );
+  }
+
 
   // Payment states
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);

@@ -1,11 +1,15 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Shield, Sparkles, Phone, Mail, MapPin, Send, HelpCircle } from 'lucide-react';
 import Hero from '../components/Hero';
 import SearchFilters from '../components/SearchFilters';
 import StayCard from '../components/StayCard';
-import { STAYS_DATA } from '../data/stays';
+import { fetchStaysFromFirebase, submitInquiryToFirebase } from '../data/stays';
+import type { Stay } from '../data/stays';
 
 export default function Home() {
+  // Stays state
+  const [stays, setStays] = useState<Stay[]>([]);
+
   // Search and filter states
   const [filters, setFilters] = useState({
     location: '',
@@ -14,6 +18,19 @@ export default function Home() {
   });
 
   const [searchTrigger, setSearchTrigger] = useState(0);
+
+  // Fetch stays from Firebase/Local Mock on load
+  useEffect(() => {
+    let isMounted = true;
+    fetchStaysFromFirebase().then((data) => {
+      if (isMounted) {
+        setStays(data);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleFilterChange = (key: 'location' | 'gender' | 'type', value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -30,7 +47,7 @@ export default function Home() {
 
   // Filter items reactively
   const filteredStays = useMemo(() => {
-    return STAYS_DATA.filter((stay) => {
+    return stays.filter((stay) => {
       // Location match
       if (filters.location && !stay.location.toLowerCase().includes(filters.location.toLowerCase())) {
         return false;
@@ -45,15 +62,30 @@ export default function Home() {
       }
       return true;
     });
-  }, [filters, searchTrigger]); // Reactively updates on changes
+  }, [stays, filters, searchTrigger]); // Reactively updates on changes
 
-  // Form submission state
+  // Contact form state
+  const [contactForm, setContactForm] = useState({
+    name: '',
+    email: '',
+    subject: '',
+    message: ''
+  });
   const [formSubmitted, setFormSubmitted] = useState(false);
-  const handleContactSubmit = (e: React.FormEvent) => {
+
+  const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormSubmitted(true);
-    setTimeout(() => setFormSubmitted(false), 5000);
+    const success = await submitInquiryToFirebase({
+      ...contactForm,
+      createdAt: new Date().toISOString()
+    });
+    if (success) {
+      setFormSubmitted(true);
+      setContactForm({ name: '', email: '', subject: '', message: '' });
+      setTimeout(() => setFormSubmitted(false), 5000);
+    }
   };
+
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -276,6 +308,8 @@ export default function Home() {
                         type="text"
                         id="name"
                         required
+                        value={contactForm.name}
+                        onChange={(e) => setContactForm(prev => ({ ...prev, name: e.target.value }))}
                         placeholder="John Doe"
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-500/10 min-h-[44px]"
                       />
@@ -288,6 +322,8 @@ export default function Home() {
                         type="email"
                         id="email"
                         required
+                        value={contactForm.email}
+                        onChange={(e) => setContactForm(prev => ({ ...prev, email: e.target.value }))}
                         placeholder="john@example.com"
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-500/10 min-h-[44px]"
                       />
@@ -302,6 +338,8 @@ export default function Home() {
                       type="text"
                       id="subject"
                       required
+                      value={contactForm.subject}
+                      onChange={(e) => setContactForm(prev => ({ ...prev, subject: e.target.value }))}
                       placeholder="e.g. Listing query, PG booking help"
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-500/10 min-h-[44px]"
                     />
@@ -315,6 +353,8 @@ export default function Home() {
                       id="message"
                       rows={4}
                       required
+                      value={contactForm.message}
+                      onChange={(e) => setContactForm(prev => ({ ...prev, message: e.target.value }))}
                       placeholder="Describe your query in detail..."
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-500/10 min-h-[100px]"
                     ></textarea>

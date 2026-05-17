@@ -196,3 +196,95 @@ export const STAYS_DATA: Stay[] = [
     ]
   }
 ];
+
+import { collection, getDocs, doc, setDoc, addDoc } from 'firebase/firestore';
+import { db, isFirebaseConfigured } from '../firebase';
+
+// Helper to seed Firebase with mock data if it is empty
+async function seedMockData() {
+  if (!db) return;
+  console.log('WhereInCalicut: Seeding Firestore with default stays data...');
+  try {
+    for (const stay of STAYS_DATA) {
+      await setDoc(doc(db, 'stays', stay.id), stay);
+    }
+    console.log('WhereInCalicut: Seeding completed successfully!');
+  } catch (error) {
+    console.error('WhereInCalicut: Seeding failed:', error);
+  }
+}
+
+// Fetch all stays from Firestore, fallback to local mock if Firebase not configured
+export async function fetchStaysFromFirebase(): Promise<Stay[]> {
+  if (!isFirebaseConfigured || !db) {
+    return STAYS_DATA;
+  }
+  try {
+    const staysCol = collection(db, 'stays');
+    const staysSnapshot = await getDocs(staysCol);
+    
+    if (staysSnapshot.empty) {
+      await seedMockData();
+      return STAYS_DATA;
+    }
+    
+    const stays: Stay[] = [];
+    staysSnapshot.forEach((doc) => {
+      stays.push(doc.data() as Stay);
+    });
+    return stays;
+  } catch (error) {
+    console.error('WhereInCalicut: Error fetching from Firestore, falling back to mock data:', error);
+    return STAYS_DATA;
+  }
+}
+
+// Submit booking request to Firestore
+export async function submitBookingToFirebase(bookingData: {
+  stayId: string;
+  stayTitle: string;
+  name: string;
+  phone: string;
+  date: string;
+  message: string;
+  status: 'Pending' | 'Confirmed';
+  createdAt: string;
+}) {
+  if (!isFirebaseConfigured || !db) {
+    console.log('WhereInCalicut: (Local Mode) Saved Booking Request:', bookingData);
+    return true;
+  }
+  try {
+    const bookingsCol = collection(db, 'bookings');
+    await addDoc(bookingsCol, bookingData);
+    console.log('WhereInCalicut: Booking submitted successfully to Firestore!');
+    return true;
+  } catch (error) {
+    console.error('WhereInCalicut: Error saving booking to Firestore:', error);
+    return false;
+  }
+}
+
+// Submit contact/inquiry request to Firestore
+export async function submitInquiryToFirebase(inquiryData: {
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  createdAt: string;
+}) {
+  if (!isFirebaseConfigured || !db) {
+    console.log('WhereInCalicut: (Local Mode) Saved Contact Message:', inquiryData);
+    return true;
+  }
+  try {
+    const inquiriesCol = collection(db, 'inquiries');
+    await addDoc(inquiriesCol, inquiryData);
+    console.log('WhereInCalicut: Inquiry submitted successfully to Firestore!');
+    return true;
+  } catch (error) {
+    console.error('WhereInCalicut: Error saving inquiry to Firestore:', error);
+    return false;
+  }
+}
+
