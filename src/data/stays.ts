@@ -197,7 +197,7 @@ export const STAYS_DATA: Stay[] = [
   }
 ];
 
-import { collection, getDocs, doc, setDoc, addDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../firebase';
 
 // Helper to seed Firebase with mock data if it is empty
@@ -287,4 +287,74 @@ export async function submitInquiryToFirebase(inquiryData: {
     return false;
   }
 }
+
+// Add new stay to Firestore
+export async function addStayToFirebase(stay: Stay) {
+  if (!isFirebaseConfigured || !db) {
+    console.log('WhereInCalicut: (Local Mode) Added Stay:', stay);
+    return true;
+  }
+  try {
+    await setDoc(doc(db, 'stays', stay.id), stay);
+    console.log('WhereInCalicut: Stay added successfully to Firestore!');
+    return true;
+  } catch (error) {
+    console.error('WhereInCalicut: Error adding stay to Firestore:', error);
+    return false;
+  }
+}
+
+// Update existing stay in Firestore
+export async function updateStayInFirebase(stayId: string, updatedFields: Partial<Stay>) {
+  if (!isFirebaseConfigured || !db) {
+    console.log('WhereInCalicut: (Local Mode) Updated Stay:', stayId, updatedFields);
+    return true;
+  }
+  try {
+    await updateDoc(doc(db, 'stays', stayId), updatedFields);
+    console.log('WhereInCalicut: Stay updated successfully in Firestore!');
+    return true;
+  } catch (error) {
+    console.error('WhereInCalicut: Error updating stay in Firestore:', error);
+    return false;
+  }
+}
+
+// Delete stay from Firestore
+export async function deleteStayFromFirebase(stayId: string) {
+  if (!isFirebaseConfigured || !db) {
+    console.log('WhereInCalicut: (Local Mode) Deleted Stay:', stayId);
+    return true;
+  }
+  try {
+    await deleteDoc(doc(db, 'stays', stayId));
+    console.log('WhereInCalicut: Stay deleted successfully from Firestore!');
+    return true;
+  } catch (error) {
+    console.error('WhereInCalicut: Error deleting stay from Firestore:', error);
+    return false;
+  }
+}
+
+// Fetch contact inquiries from Firestore
+export async function fetchInquiriesFromFirebase() {
+  if (!isFirebaseConfigured || !db) {
+    return [];
+  }
+  try {
+    const inquiriesCol = collection(db, 'inquiries');
+    const snap = await getDocs(inquiriesCol);
+    const inquiries: any[] = [];
+    snap.forEach((doc) => {
+      inquiries.push({ id: doc.id, ...doc.data() });
+    });
+    // Sort inquiries by date descending
+    inquiries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return inquiries;
+  } catch (error) {
+    console.error('WhereInCalicut: Error fetching inquiries from Firestore:', error);
+    return [];
+  }
+}
+
 

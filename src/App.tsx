@@ -4,6 +4,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 import StayDetails from './pages/StayDetails';
+import Dashboard from './pages/Dashboard';
 
 // Helper component to scroll to top on routing changes
 function ScrollToTop() {
@@ -26,28 +27,38 @@ function ScrollToTop() {
   return null;
 }
 
+function AppContent() {
+  const location = useLocation();
+  const isDashboard = location.pathname === '/dashboard';
+
+  return (
+    <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 overflow-x-hidden antialiased">
+      <ScrollToTop />
+      
+      {/* Sticky Global Navigation */}
+      {!isDashboard && <Navbar />}
+      
+      {/* Router Views */}
+      <div className="flex-grow">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/stay/:id" element={<StayDetails />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          {/* Catch-all route redirecting to Home */}
+          <Route path="*" element={<Home />} />
+        </Routes>
+      </div>
+
+      {/* Global footer details */}
+      {!isDashboard && <Footer />}
+    </div>
+  );
+}
+
 function App() {
   return (
     <BrowserRouter>
-      <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 overflow-x-hidden antialiased">
-        <ScrollToTop />
-        
-        {/* Sticky Global Navigation */}
-        <Navbar />
-        
-        {/* Router Views */}
-        <div className="flex-grow">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/stay/:id" element={<StayDetails />} />
-            {/* Catch-all route redirecting to Home */}
-            <Route path="*" element={<Home />} />
-          </Routes>
-        </div>
-
-        {/* Global footer details */}
-        <Footer />
-      </div>
+      <AppContent />
     </BrowserRouter>
   );
 }

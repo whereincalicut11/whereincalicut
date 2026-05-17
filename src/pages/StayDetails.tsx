@@ -3,10 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import { 
   ArrowLeft, Star, MapPin, Shield, CheckCircle, Wifi, Zap, 
   Wind, Coffee, Car, Utensils, BookOpen, Key, Video, Dumbbell, 
-  Droplet, ShieldAlert, Phone, MessageSquare, Mail, Calendar, 
-  Send, Sparkles, X, CreditCard, Smartphone
+  Droplet, Phone, MessageSquare, Mail, Calendar, Send
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { fetchStaysFromFirebase, submitBookingToFirebase } from '../data/stays';
 import type { Stay } from '../data/stays';
 
@@ -95,23 +93,7 @@ export default function StayDetails() {
   }
 
 
-  // Payment states
-  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
-  const [paymentStep, setPaymentStep] = useState<'options' | 'processing' | 'success'>('options');
-  const [paymentMethod, setPaymentMethod] = useState('');
 
-  const triggerPaymentFlow = () => {
-    setIsPaymentOpen(true);
-    setPaymentStep('options');
-  };
-
-  const confirmPayment = () => {
-    if (!paymentMethod) return;
-    setPaymentStep('processing');
-    setTimeout(() => {
-      setPaymentStep('success');
-    }, 2500);
-  };
 
   // Helper to render matching icon for each amenity
   const renderAmenityIcon = (name: string) => {
@@ -291,23 +273,30 @@ export default function StayDetails() {
               </p>
             </div>
 
-            {/* Advance Booking Trigger CTA */}
-            <div className="mt-6 space-y-3">
+            {/* Direct Connect CTA */}
+            <div className="mt-6">
               <button
-                onClick={triggerPaymentFlow}
-                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-4 text-base font-bold text-white shadow-lg shadow-emerald-600/20 hover:from-emerald-700 hover:to-teal-700 active:scale-95 transition-all min-h-[44px]"
+                onClick={() => {
+                  const connectSection = document.getElementById('connect-section');
+                  if (connectSection) {
+                    connectSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // Highlight the section temporarily
+                    connectSection.classList.add('ring-2', 'ring-primary-500', 'ring-offset-2');
+                    setTimeout(() => {
+                      connectSection.classList.remove('ring-2', 'ring-primary-500', 'ring-offset-2');
+                    }, 2000);
+                  }
+                }}
+                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-primary-600 to-indigo-600 px-4 py-4 text-base font-bold text-white shadow-lg shadow-primary-600/20 hover:from-primary-700 hover:to-indigo-700 active:scale-95 transition-all min-h-[44px]"
               >
-                <CreditCard className="h-5 w-5" />
-                <span>Book Stay Now (₹1,000)</span>
+                <Phone className="h-5 w-5" />
+                <span>Contact Owner Now</span>
               </button>
-              <p className="text-[10px] text-center text-slate-400">
-                Pay a small advance token to secure the stay. 100% refundable if you change your mind within 48 hours.
-              </p>
             </div>
           </div>
 
           {/* Quick Connect (Direct Contact Buttons) */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm text-left">
+          <div id="connect-section" className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm text-left transition-all duration-300">
             <h3 className="font-heading text-base font-bold text-slate-800 mb-4">Connect Directly</h3>
             <div className="space-y-3">
               {/* Phone call */}
@@ -449,139 +438,7 @@ export default function StayDetails() {
         </div>
       </div>
 
-      {/* Sleek Advance Payment Modal */}
-      <AnimatePresence>
-        {isPaymentOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsPaymentOpen(false)}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
-            ></motion.div>
 
-            {/* Modal Box */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative w-full max-w-md rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-2xl backdrop-blur-md text-left overflow-hidden"
-            >
-              {/* Close Button */}
-              <button
-                onClick={() => setIsPaymentOpen(false)}
-                className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors min-h-[32px]"
-                aria-label="Close payment modal"
-              >
-                <X className="h-4 w-4" />
-              </button>
-
-              {paymentStep === 'options' && (
-                <div className="space-y-5">
-                  <div className="flex items-center gap-2 text-emerald-600 font-heading text-lg font-bold">
-                    <Sparkles className="h-5 w-5" />
-                    <span>Advance Booking Portal</span>
-                  </div>
-
-                  <div>
-                    <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Payment Details</h4>
-                    <p className="font-heading text-xl font-extrabold text-slate-800 mt-1">₹1,000 <span className="text-xs font-normal text-slate-400">Token Advance</span></p>
-                    <p className="text-[10px] text-slate-500 mt-1">Paying for: <strong>{stay.title}</strong></p>
-                  </div>
-
-                  {/* Payment Options Grid */}
-                  <div className="space-y-2.5">
-                    <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Choose Payment Method</label>
-                    
-                    {/* UPI GPay Option */}
-                    <button
-                      onClick={() => setPaymentMethod('upi')}
-                      className={`w-full flex items-center justify-between rounded-xl border p-3.5 transition-all text-sm font-semibold min-h-[44px] ${
-                        paymentMethod === 'upi' 
-                          ? 'border-emerald-500 bg-emerald-50 text-emerald-800' 
-                          : 'border-slate-200 hover:bg-slate-50 text-slate-700'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <Smartphone className="h-5 w-5 text-emerald-600" />
-                        <span>UPI (Google Pay / PhonePe)</span>
-                      </div>
-                      <span className="text-[10px] uppercase font-bold text-slate-400">Instant</span>
-                    </button>
-
-                    {/* Credit Debit Card */}
-                    <button
-                      onClick={() => setPaymentMethod('card')}
-                      className={`w-full flex items-center justify-between rounded-xl border p-3.5 transition-all text-sm font-semibold min-h-[44px] ${
-                        paymentMethod === 'card' 
-                          ? 'border-emerald-500 bg-emerald-50 text-emerald-800' 
-                          : 'border-slate-200 hover:bg-slate-50 text-slate-700'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <CreditCard className="h-5 w-5 text-emerald-600" />
-                        <span>Credit / Debit Card</span>
-                      </div>
-                      <span className="text-[10px] uppercase font-bold text-slate-400">Secured</span>
-                    </button>
-                  </div>
-
-                  {/* Booking warning alert */}
-                  <div className="rounded-xl bg-amber-50 border border-amber-100 p-3.5 flex gap-2.5">
-                    <ShieldAlert className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-[10px] text-amber-800 leading-relaxed">
-                      Your advance of ₹1,000 goes directly into a secure escrow. It is only released to the owner when you successfully move in.
-                    </p>
-                  </div>
-
-                  <button
-                    disabled={!paymentMethod}
-                    onClick={confirmPayment}
-                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-3.5 font-bold text-white shadow-lg disabled:opacity-40 min-h-[44px]"
-                  >
-                    <span>Proceed & Confirm</span>
-                  </button>
-                </div>
-              )}
-
-              {paymentStep === 'processing' && (
-                <div className="py-12 flex flex-col items-center justify-center text-center space-y-4">
-                  {/* Custom Spinner */}
-                  <div className="relative h-14 w-14">
-                    <div className="absolute inset-0 rounded-full border-4 border-slate-100"></div>
-                    <div className="absolute inset-0 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin"></div>
-                  </div>
-                  <h4 className="font-heading text-lg font-bold text-slate-800">Processing Escrow Payment</h4>
-                  <p className="text-xs text-slate-500 max-w-xs">Connecting with banking systems. Please do not close or reload this window.</p>
-                </div>
-              )}
-
-              {paymentStep === 'success' && (
-                <div className="py-8 flex flex-col items-center justify-center text-center space-y-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 shadow-inner">
-                    <CheckCircle className="h-8 w-8" />
-                  </div>
-                  <h4 className="font-heading text-xl font-bold text-slate-800">Booking Secured Successfully!</h4>
-                  <p className="text-xs text-slate-500 max-w-xs leading-relaxed">
-                    We have successfully secured ₹1,000 for your booking at <strong>{stay.title}</strong>. A receipt and direct confirmation code has been generated.
-                  </p>
-                  <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/50 px-4 py-3 w-full text-xs font-bold text-emerald-800 uppercase tracking-wider">
-                    Receipt Ref: WIC-{Math.floor(Math.random() * 900000 + 100000)}
-                  </div>
-                  <button
-                    onClick={() => setIsPaymentOpen(false)}
-                    className="w-full rounded-xl bg-slate-800 py-3.5 text-xs font-bold text-white shadow-md min-h-[44px]"
-                  >
-                    Close & Return
-                  </button>
-                </div>
-              )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
