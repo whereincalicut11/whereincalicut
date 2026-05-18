@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, MapPin, Phone } from 'lucide-react';
+import { Menu, X, Phone } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Navbar() {
@@ -37,12 +37,11 @@ export default function Navbar() {
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           className="flex items-center gap-2 font-heading text-xl font-bold tracking-tight text-primary-600 sm:text-2xl"
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-primary-600 to-indigo-500 text-white shadow-md shadow-primary-500/20">
-            <MapPin className="h-5 w-5" />
-          </div>
-          <span className="bg-gradient-to-r from-primary-600 to-indigo-600 bg-clip-text text-transparent">
-            WhereIn<span className="font-extrabold text-slate-800">Calicut</span>
-          </span>
+          <img
+            src="https://kommodo.ai/i/JZfaLV7xOIijc8m7j46n"
+            alt="WhereInCalicut Logo"
+            className="h-10 w-auto object-contain"
+          />
         </Link>
 
         {/* Desktop Nav Links */}

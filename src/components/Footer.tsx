@@ -1,4 +1,4 @@
-import { MapPin, Mail, Phone, Shield } from 'lucide-react';
+import { Mail, Phone, Shield } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function Footer() {
@@ -18,12 +18,11 @@ export default function Footer() {
               onClick={handleScrollToTop}
               className="flex items-center gap-2 font-heading text-lg font-bold text-white tracking-tight"
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-primary-600 to-indigo-500 text-white shadow-md">
-                <MapPin className="h-4 w-4" />
-              </div>
-              <span className="bg-gradient-to-r from-primary-400 to-indigo-400 bg-clip-text text-transparent">
-                WhereIn<span className="font-extrabold text-white">Calicut</span>
-              </span>
+              <img
+                src="https://kommodo.ai/i/JZfaLV7xOIijc8m7j46n"
+                alt="WhereInCalicut Logo"
+                className="h-8 w-auto object-contain brightness-0 invert"
+              />
             </Link>
             <p className="text-xs text-slate-500 leading-relaxed max-w-xs">
               WhereInCalicut is a premium, verified accommodation search portal designed specifically for students and IT professionals moving to Kozhikode. Direct owner listings and zero brokerage markup.
